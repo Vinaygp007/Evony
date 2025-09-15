@@ -86,42 +86,45 @@ export default function TrackerPage() {
   ];
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      {/* Animated Background */}
-      <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-900/20 to-purple-900/20"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(120,119,198,0.3),transparent)]"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_80%,rgba(255,119,198,0.2),transparent)]"></div>
-        
-        {/* Floating Particles */}
-        <div className="absolute inset-0">
-          {Array.from({ length: 30 }, (_, i) => (
-            <div
-              key={i}
-              className="absolute w-1 h-1 bg-blue-400 rounded-full opacity-60 animate-pulse"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                animationDelay: `${Math.random() * 3}s`,
-                animationDuration: `${2 + Math.random() * 3}s`
-              }}
-            />
-          ))}
-        </div>
+    <div className="min-h-screen bg-black text-white overflow-hidden relative">
+      {/* Dynamic Particle System Background */}
+      <div className="absolute inset-0 overflow-hidden">
+        {Array.from({ length: 50 }, (_, i) => (
+          <div
+            key={i}
+            className="absolute w-1 h-1 bg-purple-500/30 rounded-full"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+              filter: 'blur(0.5px)',
+              animation: `pulse ${2 + Math.random() * 3}s infinite ${Math.random() * 3}s`
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Animated Background Gradients */}
+      <div className="absolute inset-0">
+        <div className="absolute -top-96 -right-96 w-[800px] h-[800px] bg-gradient-to-br from-purple-600/10 via-blue-600/10 to-transparent rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute -bottom-96 -left-96 w-[800px] h-[800px] bg-gradient-to-tr from-cyan-600/10 via-purple-600/10 to-transparent rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-radial from-purple-600/5 to-transparent rounded-full animate-ping delay-2000"></div>
       </div>
 
       {/* Glassmorphism Header */}
-      <header className="relative z-10 bg-white/5 backdrop-blur-xl border-b border-white/10 shadow-2xl">
+      <header className="relative z-20 bg-black/80 backdrop-blur-2xl border-b border-purple-500/20 shadow-2xl">
         <div className="max-w-7xl mx-auto px-8 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-6">
               <Link href="/homepage">
-                <div className="w-16 h-16 bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl flex items-center justify-center cursor-pointer hover:scale-110 transition-all duration-300 shadow-lg hover:shadow-purple-500/25">
-                  <span className="text-3xl">🎯</span>
+                <div className="relative">
+                  <div className="w-16 h-16 bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600 rounded-2xl flex items-center justify-center cursor-pointer hover:scale-110 transition-all duration-300 shadow-2xl animate-pulse">
+                    <span className="text-3xl relative z-10">🎯</span>
+                  </div>
+                  <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 to-cyan-600 rounded-2xl blur opacity-30"></div>
                 </div>
               </Link>
               <div>
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                <h1 className="text-4xl font-black bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
                   MONSTER NEXUS
                 </h1>
                 <p className="text-gray-300 text-lg font-medium">Real-Time Intelligence Dashboard</p>
@@ -130,7 +133,7 @@ export default function TrackerPage() {
             
             {/* Status Indicator */}
             <div className="flex items-center space-x-6">
-              <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl px-6 py-3 shadow-lg">
+              <div className="bg-black/50 backdrop-blur-xl border border-purple-500/30 rounded-2xl px-6 py-3 shadow-2xl">
                 <div className="flex items-center space-x-3">
                   <div className={`w-4 h-4 rounded-full ${
                     connectionStatus === 'connected' ? 'bg-green-400 shadow-lg shadow-green-400/50' : 
@@ -145,9 +148,11 @@ export default function TrackerPage() {
               </div>
               
               <Link href="/homepage">
-                <button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold px-6 py-3 rounded-xl transition-all duration-300 shadow-lg hover:shadow-purple-500/25 hover:scale-105">
-                  🏠 HOME BASE
-                </button>
+                <div className="bg-gradient-to-r from-purple-600 to-cyan-600 p-[1px] rounded-xl">
+                  <button className="bg-black px-6 py-3 rounded-xl text-white font-medium hover:bg-gray-900 transition-all duration-300">
+                    🏠 HOME BASE
+                  </button>
+                </div>
               </Link>
             </div>
           </div>
@@ -157,17 +162,17 @@ export default function TrackerPage() {
       {/* Main Content */}
       <main className="relative z-10 flex h-[calc(100vh-120px)]">
         {/* Sidebar */}
-        <div className="w-96 bg-white/5 backdrop-blur-xl border-r border-white/10 shadow-2xl">
-          <div className="p-6 border-b border-white/10">
+        <div className="w-96 bg-black/80 backdrop-blur-xl border-r border-purple-500/30 shadow-2xl">
+          <div className="p-6 border-b border-purple-500/20">
             <h2 className="text-2xl font-bold text-white mb-4">Live Intelligence Feed</h2>
             
             {/* Real-Time Stats */}
             <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="bg-gradient-to-r from-blue-600/20 to-cyan-600/20 border border-blue-500/30 rounded-xl p-4 backdrop-blur-sm">
-                <div className="text-3xl font-bold text-blue-400">{filteredMonsters.length}</div>
-                <div className="text-sm text-blue-300">ACTIVE TARGETS</div>
+              <div className="bg-gradient-to-br from-blue-600/20 to-cyan-600/20 border border-blue-500/30 rounded-xl p-4 backdrop-blur-sm">
+                <div className="text-3xl font-bold text-cyan-400">{filteredMonsters.length}</div>
+                <div className="text-sm text-cyan-300">ACTIVE TARGETS</div>
               </div>
-              <div className="bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-xl p-4 backdrop-blur-sm">
+              <div className="bg-gradient-to-br from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-xl p-4 backdrop-blur-sm">
                 <div className="text-3xl font-bold text-purple-400">{totalExtracted}</div>
                 <div className="text-sm text-purple-300">TOTAL SCANNED</div>
               </div>
@@ -180,10 +185,10 @@ export default function TrackerPage() {
                 <select
                   value={selectedMonsterType}
                   onChange={(e) => setSelectedMonsterType(e.target.value)}
-                  className="w-full bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  className="w-full bg-black/70 backdrop-blur-md border border-purple-500/30 text-white rounded-xl px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
                 >
                   {monsterTypes.map(type => (
-                    <option key={type} value={type} className="bg-gray-800">
+                    <option key={type} value={type} className="bg-gray-900">
                       {type === 'all' ? '🌟 All Creatures' : `🐲 ${type}`}
                     </option>
                   ))}
@@ -192,7 +197,7 @@ export default function TrackerPage() {
               
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">SERVER REALM</label>
-                <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl overflow-hidden">
+                <div className="bg-black/70 backdrop-blur-md border border-purple-500/30 rounded-xl overflow-hidden">
                   <ServerSelector
                     selectedServer={selectedServer}
                     onServerSelect={setSelectedServer}
@@ -250,7 +255,7 @@ export default function TrackerPage() {
         <div className="flex-1 relative">
           {/* Map Controls */}
           <div className="absolute top-6 left-6 right-6 z-20 flex justify-between items-start">
-            <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl px-6 py-3 shadow-xl">
+            <div className="bg-black/80 backdrop-blur-xl border border-purple-500/30 rounded-2xl px-6 py-3 shadow-2xl">
               <h3 className="text-lg font-bold text-white mb-1">TACTICAL MAP</h3>
               <p className="text-sm text-gray-300">Real-time creature tracking</p>
             </div>
@@ -258,7 +263,7 @@ export default function TrackerPage() {
             <div className="flex space-x-4">
               <button
                 onClick={() => setUseSimpleMap(!useSimpleMap)}
-                className="bg-white/10 backdrop-blur-xl border border-white/20 hover:bg-white/20 text-white font-semibold px-6 py-3 rounded-xl transition-all duration-300 shadow-lg hover:scale-105"
+                className="bg-black/80 backdrop-blur-xl border border-purple-500/30 hover:bg-black/90 text-white font-semibold px-6 py-3 rounded-xl transition-all duration-300 shadow-lg hover:scale-105"
                 title={`Switch to ${useSimpleMap ? 'Advanced' : 'Simple'} Map`}
               >
                 {useSimpleMap ? '🗺️ BASIC MODE' : '⚛️ ADVANCED MODE'}
@@ -267,7 +272,7 @@ export default function TrackerPage() {
           </div>
 
           {/* Map Container */}
-          <div className="absolute inset-6 top-20 rounded-2xl overflow-hidden shadow-2xl border border-white/20 bg-white/5 backdrop-blur-sm">
+          <div className="absolute inset-6 top-20 rounded-2xl overflow-hidden shadow-2xl border border-purple-500/30 bg-black/50 backdrop-blur-sm">
             {useSimpleMap ? (
               <SimpleMap
                 monsters={filteredMonsters}
@@ -284,7 +289,7 @@ export default function TrackerPage() {
           </div>
           
           {/* Stats Panel */}
-          <div className="absolute bottom-6 right-6 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-6 min-w-[300px] shadow-xl">
+          <div className="absolute bottom-6 right-6 bg-black/80 backdrop-blur-xl border border-purple-500/30 rounded-2xl p-6 min-w-[300px] shadow-2xl">
             <h3 className="text-lg font-bold text-white mb-4 flex items-center space-x-2">
               <span>📊</span>
               <span>INTELLIGENCE BRIEFING</span>
@@ -292,7 +297,7 @@ export default function TrackerPage() {
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-gray-300">Active Creatures:</span>
-                <span className="text-blue-400 font-bold text-xl">{filteredMonsters.length}</span>
+                <span className="text-cyan-400 font-bold text-xl">{filteredMonsters.length}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-300">Data Source:</span>
@@ -307,7 +312,7 @@ export default function TrackerPage() {
                 <span className="text-cyan-400 font-bold">{stats.totalMonsters}</span>
               </div>
               {currentServer && (
-                <div className="pt-3 border-t border-white/20">
+                <div className="pt-3 border-t border-purple-500/30">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-300">Active Server:</span>
                     <span className="text-yellow-400 font-bold">{currentServer}</span>
@@ -319,9 +324,9 @@ export default function TrackerPage() {
           
           {/* Loading Overlay */}
           {loading && (
-            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-30">
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-30">
               <div className="text-center">
-                <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
+                <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
                 <div className="text-2xl font-bold text-white mb-2">SCANNING NEXUS...</div>
                 <p className="text-gray-300">Synchronizing creature intelligence</p>
               </div>
@@ -339,7 +344,7 @@ export default function TrackerPage() {
                 </p>
                 <button
                   onClick={() => setShowManualEntry(true)}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-4 px-8 rounded-xl transition-all duration-300 shadow-lg hover:shadow-blue-500/25 hover:scale-105"
+                  className="bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white font-bold py-4 px-8 rounded-xl transition-all duration-300 shadow-lg hover:shadow-purple-500/25 hover:scale-105"
                 >
                   ⚡ INITIATE TRACKING
                 </button>
@@ -351,8 +356,8 @@ export default function TrackerPage() {
 
       {/* Manual Entry Modal */}
       {showManualEntry && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-black/90 backdrop-blur-xl border border-purple-500/30 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
             <ManualMonsterEntry
               onAddMonster={addMonster}
               onClose={() => setShowManualEntry(false)}
