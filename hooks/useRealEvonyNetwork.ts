@@ -5,8 +5,8 @@ import { Monster } from '../types/monster';
 
 interface NetworkMonsterData {
   type: 'initial_data' | 'real_monster_found' | 'process_monster_found' | 'new_monster';
-  monster?: any;
-  monsters?: any[];
+  monster?: Partial<Monster>;
+  monsters?: Partial<Monster>[];
   timestamp: string;
   source?: string;
 }
@@ -24,7 +24,7 @@ export function useRealEvonyNetwork() {
   });
 
   const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   const connectToNetworkMonitor = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {

@@ -9,6 +9,9 @@ export interface Monster {
   server?: string; // Server name
   region?: string; // Region name
   regionType?: string; // Region type
+  source?: string; // Data source (network, api, dom, etc.)
+  reportedBy?: string; // Who reported this monster
+  verified?: boolean; // Whether the monster data is verified
 }
 
 export interface RealTimeMonster extends Monster {
