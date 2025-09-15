@@ -5,7 +5,6 @@ import { MonsterMap } from '../../components/MonsterMapWrapper';
 import SimpleMap from '../../components/SimpleMap';
 import { MonsterSidebar } from '../../components/MonsterSidebar';
 import ServerSelector from '../../components/ServerSelector';
-import ManualMonsterEntry from '../../components/ManualMonsterEntry';
 import { useStreamlinedExtractor } from '../../hooks/useStreamlinedExtractor';
 import { Monster, MapBounds } from '../../types/monster';
 import { EvonyServer } from '../../types/evonyServers';
@@ -16,7 +15,6 @@ export default function TrackerPage() {
   const [selectedMonsterType, setSelectedMonsterType] = useState<string>('all');
   const [selectedServer, setSelectedServer] = useState<EvonyServer | null>(null);
   const [useSimpleMap, setUseSimpleMap] = useState(true);
-  const [showManualEntry, setShowManualEntry] = useState(false);
   
   // Use REAL streamlined extractor for live monster data
   const { 
@@ -34,10 +32,6 @@ export default function TrackerPage() {
   const clearAllMonsters = () => {
     // For real data, we can't clear server data, just reconnect
     reconnect();
-  };
-  const addMonster = () => {
-    // Real data comes from extractor, manual add not supported
-    console.log('Manual monster entry not supported in real extractor mode');
   };
   
   // Debug log for real extractor monsters
@@ -208,14 +202,6 @@ export default function TrackerPage() {
 
             {/* Action Buttons */}
             <div className="mt-6 space-y-3">
-              <button
-                onClick={() => setShowManualEntry(true)}
-                className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-green-500/25 hover:scale-105 flex items-center justify-center space-x-2"
-              >
-                <span>✨</span>
-                <span>MARK NEW TARGET</span>
-              </button>
-              
               {monsters.length > 0 && (
                 <button
                   onClick={() => {
@@ -340,31 +326,18 @@ export default function TrackerPage() {
                 <div className="text-8xl mb-6 animate-pulse">🐲</div>
                 <h3 className="text-3xl font-bold text-white mb-4">NEXUS AWAITING TARGETS</h3>
                 <p className="text-gray-300 mb-8 text-lg">
-                  The creature intelligence network is ready. Begin tracking monsters from your Evony realm.
+                  The creature intelligence network is ready. Start your Evony game to begin real-time monster tracking.
                 </p>
-                <button
-                  onClick={() => setShowManualEntry(true)}
-                  className="bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white font-bold py-4 px-8 rounded-xl transition-all duration-300 shadow-lg hover:shadow-purple-500/25 hover:scale-105"
-                >
-                  ⚡ INITIATE TRACKING
-                </button>
+                <div className="bg-gradient-to-r from-purple-600/20 to-cyan-600/20 border border-purple-500/30 rounded-xl p-4 backdrop-blur-sm">
+                  <p className="text-purple-300 text-sm">
+                    🎮 Launch Evony: The King&apos;s Return to detect monsters automatically
+                  </p>
+                </div>
               </div>
             </div>
           )}
         </div>
       </main>
-
-      {/* Manual Entry Modal */}
-      {showManualEntry && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-black/90 backdrop-blur-xl border border-purple-500/30 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
-            <ManualMonsterEntry
-              onAddMonster={addMonster}
-              onClose={() => setShowManualEntry(false)}
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 }
