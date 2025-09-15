@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import { io, Socket } from 'socket.io-client';
 import { Monster } from '../types/monster';
 
 interface UseSocketProps {
@@ -9,56 +8,57 @@ interface UseSocketProps {
 }
 
 export const useSocket = ({ onMonsterSpawn, onMonsterUpdate, onMonsterRemove }: UseSocketProps) => {
-  const socketRef = useRef<Socket | null>(null);
+  const socketRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    // Initialize socket connection
-    socketRef.current = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001');
+    // Initialize socket connection to the monster server
+    const ws = new WebSocket('ws://localhost:8080');
 
-    const socket = socketRef.current;
+    ws.onopen = () => {
+      console.log('Connected to monster server');
+    };
 
-    // Listen for monster events
-    socket.on('monster:spawn', (monster: Monster) => {
-      onMonsterSpawn(monster);
-    });
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'map_data' && data.monsters) {
+          // Initial map data received
+          data.monsters.forEach((monster: Monster) => {
+            onMonsterSpawn(monster);
+          });
+        } else if (data.type === 'monster_spawn') {
+          onMonsterSpawn(data.monster);
+        } else if (data.type === 'monster_update') {
+          onMonsterUpdate(data.monster);
+        } else if (data.type === 'monster_remove') {
+          onMonsterRemove(data.monsterId);
+        }
+      } catch (error) {
+        console.error('Error parsing WebSocket data:', error);
+      }
+    };
 
-    socket.on('monster:update', (monster: Monster) => {
-      onMonsterUpdate(monster);
-    });
+    ws.onclose = () => {
+      console.log('Disconnected from monster server');
+    };
 
-    socket.on('monster:remove', (monsterId: string) => {
-      onMonsterRemove(monsterId);
-    });
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
 
-    socket.on('connect', () => {
-      console.log('Connected to socket server');
-    });
-
-    socket.on('disconnect', () => {
-      console.log('Disconnected from socket server');
-    });
-
-    socket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
-    });
+    // Store reference to the raw WebSocket
+    socketRef.current = ws;
 
     // Cleanup on unmount
     return () => {
-      socket.disconnect();
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
     };
   }, [onMonsterSpawn, onMonsterUpdate, onMonsterRemove]);
 
-  const emitJoinRoom = (roomId: string) => {
-    socketRef.current?.emit('join:room', roomId);
-  };
-
-  const emitLeaveRoom = (roomId: string) => {
-    socketRef.current?.emit('leave:room', roomId);
-  };
-
   return {
     socket: socketRef.current,
-    emitJoinRoom,
-    emitLeaveRoom
+    isConnected: socketRef.current?.readyState === WebSocket.OPEN
   };
 };

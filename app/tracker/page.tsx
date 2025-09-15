@@ -5,26 +5,11 @@ import { MonsterMap } from '../../components/MonsterMapWrapper';
 import SimpleMap from '../../components/SimpleMap';
 import { MonsterSidebar } from '../../components/MonsterSidebar';
 import ServerSelector from '../../components/ServerSelector';
-import DataAcquisitionDashboard from '../../components/DataAcquisitionDashboard';
-import { useMonsters } from '../../hooks/useMonsters';
-import { useSocket } from '../../hooks/useSocket';
+import ManualMonsterEntry from '../../components/ManualMonsterEntry';
+import { useRealEvonyNetwork } from '../../hooks/useRealEvonyNetwork';
 import { Monster, MapBounds } from '../../types/monster';
 import { EvonyServer } from '../../types/evonyServers';
 import Link from 'next/link';
-
-interface WebSocketMonsterData {
-  id: string;
-  monster: string;
-  level: number;
-  x: number;
-  y: number;
-  timestamp: number;
-  serverId: string;
-  server?: string;
-  alliance?: string;
-  health?: number;
-  location?: string;
-}
 
 export default function TrackerPage() {
   const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
@@ -32,61 +17,43 @@ export default function TrackerPage() {
   const [selectedServer, setSelectedServer] = useState<EvonyServer | null>(null);
   const [useSimpleMap, setUseSimpleMap] = useState(true);
   const [activeTab, setActiveTab] = useState<'tracker' | 'acquisition'>('tracker');
+  const [showManualEntry, setShowManualEntry] = useState(false);
   
-  const { monsters, loading, addMonster, updateMonster, removeMonster } = useMonsters();
+  // Use REAL network monitoring for Server 353 data
+  const { 
+    monsters,
+    connectionStatus,
+    lastUpdate,
+    extractionStats,
+    reconnect,
+    getNetworkStats,
+    isConnected,
+    isRealTime
+  } = useRealEvonyNetwork();
   
-  // WebSocket connection for Server 353 data
+  // Define loading state based on connection status
+  const loading = connectionStatus === 'connecting' || connectionStatus === 'disconnected';
+  
+  // Define helper functions
+  const getStats = () => getNetworkStats();
+  const clearAllMonsters = () => {
+    // For real data, we can't clear server data, just reconnect
+    reconnect();
+  };
+  const addMonster = () => {
+    // Real data comes from server, manual add not supported in real mode
+    console.log('Manual monster entry not supported in real data mode');
+  };
+  
+  // Debug log for real network monsters
   useEffect(() => {
-    console.log('🔌 Connecting to Server 353 WebSocket...');
-    const ws = new WebSocket('ws://localhost:8080');
-    
-    ws.onopen = () => {
-      console.log('✅ Connected to Server 353 WebSocket');
-    };
-    
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        console.log('📦 Received data from Server 353:', data.type, data.monsters?.length || 0, 'monsters');
-        
-        if (data.monsters && Array.isArray(data.monsters)) {
-          data.monsters.forEach((monsterData: WebSocketMonsterData) => {
-            const processedMonster: Monster = {
-              id: monsterData.id,
-              monster: monsterData.monster,
-              level: monsterData.level,
-              x: monsterData.x,
-              y: monsterData.y,
-              timestamp: monsterData.timestamp,
-              serverId: monsterData.serverId || 'Server_353'
-            };
-            addMonster(processedMonster);
-          });
-        }
-      } catch (error) {
-        console.error('❌ Error parsing WebSocket data:', error);
-      }
-    };
-    
-    ws.onclose = () => {
-      console.log('❌ Disconnected from Server 353 WebSocket');
-    };
-    
-    ws.onerror = (error) => {
-      console.error('❌ WebSocket error:', error);
-    };
-    
-    return () => {
-      ws.close();
-    };
-  }, [addMonster]);
+    console.log('🔥 REAL monsters from Server 353:', monsters.length);
+    if (monsters.length > 0) {
+      console.log('🎯 Latest real monsters:', monsters.slice(0, 3));
+      console.log('📊 Network stats:', getNetworkStats());
+    }
+  }, [monsters, getNetworkStats]);
   
-  useSocket({
-    onMonsterSpawn: addMonster,
-    onMonsterUpdate: updateMonster,
-    onMonsterRemove: removeMonster
-  });
-
   const filteredMonsters = monsters.filter((monster: Monster) => {
     const typeMatch = selectedMonsterType === 'all' || monster.monster === selectedMonsterType;
     const serverMatch = !selectedServer || monster.serverId === selectedServer.id;
@@ -122,8 +89,8 @@ export default function TrackerPage() {
               </div>
             </Link>
             <div>
-              <h1 className="text-3xl font-bold text-white">Evony Monster Tracker</h1>
-              <p className="text-gray-400 text-sm">Real-time monster hunting companion</p>
+              <h1 className="text-3xl font-bold text-white">Real Evony Monster Tracker</h1>
+              <p className="text-gray-400 text-sm">Track real monsters from your Evony gameplay</p>
             </div>
           </div>
           
@@ -147,7 +114,7 @@ export default function TrackerPage() {
                     : 'text-gray-300 hover:text-white'
                 }`}
               >
-                🤖 Real-time Data
+                📊 Data Management
               </button>
             </div>
             
@@ -167,11 +134,55 @@ export default function TrackerPage() {
               </button>
             </Link>
             
-            <div className="flex items-center space-x-2 bg-gray-700 px-3 py-2 rounded-md">
-              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-              <span className="text-sm text-gray-300">
-                {filteredMonsters.length} monsters
-              </span>
+            <div className="flex items-center space-x-4">
+              {/* Add Monster Button */}
+              <button
+                onClick={() => setShowManualEntry(true)}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm rounded-md transition-colors flex items-center space-x-2"
+              >
+                <span>➕</span>
+                <span>Add Monster</span>
+              </button>
+
+              {/* Clear Data Button */}
+              {monsters.length > 0 && (
+                <button
+                  onClick={() => {
+                    if (confirm('Are you sure you want to clear all monster data?')) {
+                      clearAllMonsters();
+                    }
+                  }}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm rounded-md transition-colors"
+                >
+                  🗑️ Clear All
+                </button>
+              )}
+
+              {/* Network Monitor Status */}
+              <div className="flex items-center space-x-2 bg-gray-700 px-3 py-2 rounded-md">
+                <div className={`w-2 h-2 rounded-full ${
+                  connectionStatus === 'connected' ? 'bg-green-400' : 
+                  connectionStatus === 'connecting' ? 'bg-yellow-400' : 'bg-red-400'
+                }`}></div>
+                <span className="text-sm text-gray-300">
+                  {isConnected ? `${monsters.length} live monsters` : 'Network monitor offline'}
+                </span>
+                {!isConnected && (
+                  <button
+                    onClick={reconnect}
+                    className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                  >
+                    Reconnect
+                  </button>
+                )}
+              </div>
+
+              {/* Network Stats */}
+              {monsters.length > 0 && (
+                <div className="text-xs text-gray-400">
+                  Total: {getNetworkStats().totalMonsters} | Recent: {getNetworkStats().recentMonsters} | Avg Level: {getNetworkStats().averageLevel}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -244,19 +255,23 @@ export default function TrackerPage() {
               </div>
               
               <div className="absolute top-8 right-8 bg-gray-800/90 backdrop-blur-sm border border-gray-700 rounded-lg p-4 min-w-[200px]">
-                <h3 className="text-lg font-semibold text-white mb-3">Statistics</h3>
+                <h3 className="text-lg font-semibold text-white mb-3">Real Data Stats</h3>
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span className="text-gray-300">Active Monsters:</span>
                     <span className="text-blue-400 font-bold">{filteredMonsters.length}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-300">Server Status:</span>
-                    <span className="text-green-400">Online</span>
+                    <span className="text-gray-300">Data Source:</span>
+                    <span className="text-red-400">DEMO ONLY - No Real Data</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-300">Map Engine:</span>
                     <span className="text-blue-400">{useSimpleMap ? 'Simple' : 'React'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">Total Tracked:</span>
+                    <span className="text-purple-400">{getStats().totalMonsters}</span>
                   </div>
                   {selectedServer && (
                     <div className="pt-2 border-t border-gray-600">
@@ -283,16 +298,93 @@ export default function TrackerPage() {
           <div className="flex-1 p-8">
             <div className="bg-gray-800 rounded-lg border border-gray-700 h-full overflow-hidden">
               <div className="p-6 border-b border-gray-700">
-                <h2 className="text-2xl font-bold text-white">Real-time Data Acquisition</h2>
-                <p className="text-gray-400">Monitor live monster data streams</p>
+                <h2 className="text-2xl font-bold text-white">Real Monster Data Management</h2>
+                <p className="text-gray-400">Manage your real Evony monster tracking data</p>
               </div>
               <div className="p-6">
-                <DataAcquisitionDashboard />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Quick Stats */}
+                  <div className="bg-gray-700 rounded-lg p-4">
+                    <h3 className="text-lg font-semibold text-white mb-2">📊 Statistics</h3>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-gray-300">Total Monsters:</span>
+                        <span className="text-blue-400 font-bold">{getStats().totalMonsters}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-300">Active Servers:</span>
+                        <span className="text-green-400 font-bold">{extractionStats.networkExtractions}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-300">Monster Types:</span>
+                        <span className="text-purple-400 font-bold">{getStats().uniqueTypes.length}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quick Actions */}
+                  <div className="bg-gray-700 rounded-lg p-4">
+                    <h3 className="text-lg font-semibold text-white mb-2">⚡ Quick Actions</h3>
+                    <div className="space-y-2">
+                      <button
+                        onClick={() => setShowManualEntry(true)}
+                        className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md transition-colors"
+                      >
+                        ➕ Add Monster
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm('Clear all monster data?')) clearAllMonsters();
+                        }}
+                        className="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-md transition-colors"
+                        disabled={monsters.length === 0}
+                      >
+                        🗑️ Clear All Data
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Instructions */}
+                  <div className="bg-gray-700 rounded-lg p-4">
+                    <h3 className="text-lg font-semibold text-white mb-2">📋 Instructions</h3>
+                    <div className="text-sm text-gray-300 space-y-2">
+                      <p>1. Tap monsters in Evony to get coordinates</p>
+                      <p>2. Use &quot;Add Monster&quot; to input real data</p>
+                      <p>3. Share data with your alliance</p>
+                      <p>4. Track monsters on the map</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* No Data Message */}
+                {monsters.length === 0 && (
+                  <div className="mt-8 text-center py-12">
+                    <div className="text-6xl mb-4">🐲</div>
+                    <h3 className="text-xl font-semibold text-white mb-2">No Real Monster Data Yet</h3>
+                    <p className="text-gray-400 mb-4">
+                      Start tracking real monsters from your Evony gameplay!
+                    </p>
+                    <button
+                      onClick={() => setShowManualEntry(true)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 rounded-md transition-colors"
+                    >
+                      Add Your First Monster
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         )}
       </main>
+
+      {/* Manual Monster Entry Modal */}
+      {showManualEntry && (
+        <ManualMonsterEntry
+          onAddMonster={addMonster}
+          onClose={() => setShowManualEntry(false)}
+        />
+      )}
     </div>
   );
 }

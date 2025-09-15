@@ -1,30 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Monster } from '../types/monster';
 
 export const useMonsters = () => {
   const [monsters, setMonsters] = useState<Monster[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchMonsters = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/monsters');
-      if (!response.ok) {
-        throw new Error('Failed to fetch monsters');
-      }
-      const data = await response.json();
-      setMonsters(data);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loading = false;
+  const error = null;
 
   const addMonster = (monster: Monster) => {
-    setMonsters(prev => [...prev, monster]);
+    setMonsters(prev => {
+      // Avoid duplicates
+      const exists = prev.some(m => m.id === monster.id);
+      if (exists) {
+        return prev;
+      }
+      return [...prev, monster];
+    });
   };
 
   const updateMonster = (updatedMonster: Monster) => {
@@ -39,9 +29,9 @@ export const useMonsters = () => {
     setMonsters(prev => prev.filter(monster => monster.id !== monsterId));
   };
 
-  useEffect(() => {
-    fetchMonsters();
-  }, []);
+  const clearMonsters = () => {
+    setMonsters([]);
+  };
 
   return {
     monsters,
@@ -50,6 +40,6 @@ export const useMonsters = () => {
     addMonster,
     updateMonster,
     removeMonster,
-    refetch: fetchMonsters
+    clearMonsters
   };
 };

@@ -1,86 +1,74 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Monster } from '../../../types/monster';
+import WebSocket from 'ws';
 
-// Mock data for demonstration
-const mockMonsters: Monster[] = [
-  {
-    id: '1',
-    monster: 'Griffin',
-    level: 4,
-    x: 123.45,
-    y: 456.78,
-    timestamp: Date.now() - 300000, // 5 minutes ago
-    serverId: 'us1'
-  },
-  {
-    id: '2',
-    monster: 'Dragon',
-    level: 8,
-    x: -45.67,
-    y: 123.89,
-    timestamp: Date.now() - 120000, // 2 minutes ago
-    serverId: 'us1'
-  },
-  {
-    id: '3',
-    monster: 'Orc',
-    level: 2,
-    x: 200.12,
-    y: -100.34,
-    timestamp: Date.now() - 600000, // 10 minutes ago
-    serverId: 'us2'
-  },
-  {
-    id: '4',
-    monster: 'Goblin',
-    level: 1,
-    x: -200.45,
-    y: -300.67,
-    timestamp: Date.now() - 180000, // 3 minutes ago
-    serverId: 'eu1'
-  },
-  {
-    id: '5',
-    monster: 'Troll',
-    level: 6,
-    x: 350.89,
-    y: 250.12,
-    timestamp: Date.now() - 450000, // 7.5 minutes ago
-    serverId: 'eu1'
-  },
-  {
-    id: '6',
-    monster: 'Skeleton',
-    level: 3,
-    x: -150.23,
-    y: 400.56,
-    timestamp: Date.now() - 90000, // 1.5 minutes ago
-    serverId: 'asia1'
-  },
-  {
-    id: '7',
-    monster: 'Vampire',
-    level: 7,
-    x: 100.78,
-    y: -200.34,
-    timestamp: Date.now() - 240000, // 4 minutes ago
-    serverId: 'asia1'
-  },
-  {
-    id: '8',
-    monster: 'Phoenix',
-    level: 9,
-    x: -300.12,
-    y: 150.45,
-    timestamp: Date.now() - 360000, // 6 minutes ago
-    serverId: 'us3'
-  }
-];
+// Function to fetch monsters from the WebSocket server
+const fetchMonstersFromServer = (): Promise<Monster[]> => {
+  return new Promise((resolve, reject) => {
+    try {
+      const ws = new WebSocket('ws://localhost:8080');
+      
+      ws.on('open', () => {
+        // WebSocket connection opened
+      });
+      
+      ws.on('message', (data) => {
+        try {
+          const response = JSON.parse(data.toString());
+          if (response.type === 'map_data' && response.monsters) {
+            // Transform the data to match our Monster interface
+            const monsters: Monster[] = response.monsters.map((monster: any) => ({
+              id: monster.id,
+              monster: monster.monster,
+              level: monster.level,
+              x: monster.x,
+              y: monster.y,
+              timestamp: monster.timestamp,
+              serverId: monster.serverId || 'Server_353',
+              server: monster.server,
+              region: monster.region,
+              regionType: monster.regionType
+            }));
+            resolve(monsters);
+          } else {
+            resolve([]);
+          }
+        } catch (error) {
+          console.error('Error parsing WebSocket data:', error);
+          resolve([]);
+        } finally {
+          ws.close();
+        }
+      });
+      
+      ws.on('error', (error) => {
+        console.error('WebSocket error:', error);
+        resolve([]);
+      });
+      
+      ws.on('close', () => {
+        // Connection closed
+      });
+      
+      // Set a timeout to prevent hanging
+      setTimeout(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.close();
+        }
+        resolve([]);
+      }, 5000);
+      
+    } catch (error) {
+      console.error('Error connecting to monster server:', error);
+      resolve([]);
+    }
+  });
+};
 
 export async function GET(request: NextRequest) {
   try {
-    // Simulate some processing delay
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Fetch monsters from the WebSocket server
+    const monsters = await fetchMonstersFromServer();
 
     // You can add query parameters for filtering
     const { searchParams } = new URL(request.url);
@@ -89,31 +77,31 @@ export async function GET(request: NextRequest) {
     const maxLevel = searchParams.get('maxLevel');
     const serverId = searchParams.get('serverId');
 
-    let filteredMonsters = mockMonsters;
+    let filteredMonsters = monsters;
 
     // Apply filters if provided
     if (type) {
-      filteredMonsters = filteredMonsters.filter(monster => 
+      filteredMonsters = filteredMonsters.filter((monster: Monster) => 
         monster.monster.toLowerCase() === type.toLowerCase()
       );
     }
 
     if (minLevel) {
       const min = parseInt(minLevel);
-      filteredMonsters = filteredMonsters.filter(monster => 
+      filteredMonsters = filteredMonsters.filter((monster: Monster) => 
         monster.level >= min
       );
     }
 
     if (maxLevel) {
       const max = parseInt(maxLevel);
-      filteredMonsters = filteredMonsters.filter(monster => 
+      filteredMonsters = filteredMonsters.filter((monster: Monster) => 
         monster.level <= max
       );
     }
 
     if (serverId) {
-      filteredMonsters = filteredMonsters.filter(monster => 
+      filteredMonsters = filteredMonsters.filter((monster: Monster) => 
         monster.serverId === serverId
       );
     }

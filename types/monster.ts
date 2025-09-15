@@ -6,6 +6,9 @@ export interface Monster {
   y: number;
   timestamp?: number;
   serverId?: string; // Add serverId for server filtering
+  server?: string; // Server name
+  region?: string; // Region name
+  regionType?: string; // Region type
 }
 
 export interface RealTimeMonster extends Monster {
