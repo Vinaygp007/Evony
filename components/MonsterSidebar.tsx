@@ -101,7 +101,7 @@ export const MonsterSidebar: React.FC<MonsterSidebarProps> = ({
   return (
     <div className={`h-full flex flex-col ${className}`}>
       {/* Header */}
-      <div className="p-6 border-b border-gray-700/50">
+      <div className="p-6 border-b border-gray-700/50 flex-shrink-0">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
@@ -189,7 +189,7 @@ export const MonsterSidebar: React.FC<MonsterSidebarProps> = ({
       </div>
 
       {/* Monster List */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 min-h-0 overflow-y-auto monster-list-scroll p-4">
         {loading ? (
           <div className="flex items-center justify-center h-32">
             <div className="text-center">

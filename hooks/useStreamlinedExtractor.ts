@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Monster } from '../types/monster';
 
 interface StreamlinedExtractorData {
-  type: 'monster_data' | 'new_monster' | 'server_connected';
+  type: 'monster_data' | 'new_monster' | 'server_connected' | 'server_change';
   monster?: {
     id: string;
     x: number;
@@ -12,6 +12,8 @@ interface StreamlinedExtractorData {
     type: string;
     level: number;
     server: string;
+    serverRegion?: string;
+    serverName?: string;
     source: string;
     timestamp: number;
   };
@@ -22,6 +24,8 @@ interface StreamlinedExtractorData {
     type: string;
     level: number;
     server: string;
+    serverRegion?: string;
+    serverName?: string;
     source: string;
     timestamp: number;
   }[];
@@ -49,6 +53,8 @@ export function useStreamlinedExtractor() {
     server?: string;
     source?: string;
     timestamp?: number;
+    serverRegion?: string;
+    serverName?: string;
   }): Monster => {
     return {
       id: extractorMonster.id || `${extractorMonster.x}_${extractorMonster.y}`,
@@ -57,7 +63,8 @@ export function useStreamlinedExtractor() {
       x: extractorMonster.x,
       y: extractorMonster.y,
       timestamp: extractorMonster.timestamp || Date.now(),
-      server: extractorMonster.server || currentServer || 'Unknown Server',
+      server: extractorMonster.server || extractorMonster.serverName || currentServer || 'Unknown Server',
+      serverId: extractorMonster.serverRegion || 'unknown',
       source: extractorMonster.source || 'streamlined_extractor',
       reportedBy: 'Streamlined Extractor'
     };
@@ -85,27 +92,42 @@ export function useStreamlinedExtractor() {
       wsRef.current.onmessage = (event) => {
         try {
           const data: StreamlinedExtractorData = JSON.parse(event.data);
-          console.log('📡 Real monster data received:', data);
+          console.log('📡 Raw WebSocket data received:', data);
 
           if (data.type === 'monster_data' && data.monsters) {
             // Initial monster data
-            const convertedMonsters = data.monsters.map(convertExtractorMonster);
+            console.log(`🔥 Processing ${data.monsters.length} initial monsters`);
+            const convertedMonsters = data.monsters.map(monster => {
+              console.log('🐾 Converting monster:', monster);
+              return convertExtractorMonster(monster);
+            });
             setMonsters(convertedMonsters);
             setLastUpdate(new Date());
             setTotalExtracted(prev => prev + convertedMonsters.length);
-            console.log(`🔥 Loaded ${convertedMonsters.length} real monsters from extractor`);
+            console.log(`✅ Loaded ${convertedMonsters.length} real monsters from extractor`);
+            console.log('🎯 Converted monsters:', convertedMonsters);
           } 
           else if (data.type === 'new_monster' && data.monster) {
             // New monster found
+            console.log('🆕 Processing new monster:', data.monster);
             const newMonster = convertExtractorMonster(data.monster);
+            console.log('🎯 Converted new monster:', newMonster);
+            
             setMonsters(prev => {
-              const updated = [newMonster, ...prev.filter(m => m.id !== newMonster.id)];
-              return updated.slice(0, 100); // Keep last 100 monsters
+              const existing = prev.find(m => m.id === newMonster.id);
+              if (existing) {
+                console.log(`🔄 Updating existing monster: ${newMonster.monster}`);
+                return prev.map(m => m.id === newMonster.id ? newMonster : m);
+              } else {
+                console.log(`✨ Adding new monster: ${newMonster.monster}`);
+                const updated = [newMonster, ...prev];
+                return updated.slice(0, 100); // Keep last 100 monsters
+              }
             });
             
             setLastUpdate(new Date());
             setTotalExtracted(prev => prev + 1);
-            setCurrentServer(data.monster.server || null);
+            setCurrentServer(data.monster.server || data.monster.serverName || null);
             
             console.log(`🎯 NEW REAL MONSTER: ${newMonster.monster} Level ${newMonster.level} at (${newMonster.x}, ${newMonster.y})`);
           }

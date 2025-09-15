@@ -49,22 +49,48 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
           mapRef.current = null;
         }
 
-        // Create new map
+        // Create new map with Evony coordinate system
         map = leaflet.map(mapContainerRef.current, {
-          center: [0, 0],
-          zoom: 6,
+          center: [500, 500], // Center of Evony map (500, 500)
+          zoom: 3,
           preferCanvas: true,
           attributionControl: false,
           zoomControl: true,
+          crs: leaflet.CRS.Simple, // Use simple CRS for game coordinates
         });
 
         mapRef.current = map;
 
-        // Add dark theme tile layer
-        leaflet.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-          attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-          maxZoom: 18,
+        // Set map bounds to Evony game world (0-1000 x 0-1000)
+        const bounds = [[0, 0], [1000, 1000]];
+        
+        // Add a dark background instead of tile layer for game map
+        const gameBackground = leaflet.rectangle(bounds, {
+          color: '#1a1a2e',
+          fillColor: '#16213e',
+          fillOpacity: 1,
+          weight: 2
         }).addTo(map);
+
+        // Add grid lines for Evony coordinates
+        for (let i = 0; i <= 1000; i += 100) {
+          // Vertical lines
+          leaflet.polyline([[0, i], [1000, i]], {
+            color: '#333',
+            weight: 1,
+            opacity: 0.3
+          }).addTo(map);
+          
+          // Horizontal lines  
+          leaflet.polyline([[i, 0], [i, 1000]], {
+            color: '#333',
+            weight: 1,
+            opacity: 0.3
+          }).addTo(map);
+        }
+
+        // Fit map to Evony world bounds
+        map.fitBounds(bounds);
 
         // Handle map events
         const handleMoveEnd = () => {
@@ -107,10 +133,15 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
 
   // Update markers when monsters change
   useEffect(() => {
+    console.log('🗺️ SimpleMap: Monsters changed, count:', monsters.length);
+    console.log('🗺️ SimpleMap: Map initialized:', mapInitialized);
+    console.log('🗺️ SimpleMap: Map ref exists:', !!mapRef.current);
+    
     if (!mapInitialized || !mapRef.current) return;
 
     const updateMarkers = async () => {
       try {
+        console.log('🗺️ SimpleMap: Starting marker update with', monsters.length, 'monsters');
         const L = await import('leaflet');
         const leaflet = L.default || L;
         const map = mapRef.current;
@@ -122,10 +153,28 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
           }
         });
 
-        // Add new markers
-        monsters.forEach((monster) => {
+        console.log('🗺️ SimpleMap: Cleared existing markers, adding new ones...');
+
+        // Add new markers for Evony coordinates
+        monsters.forEach((monster, index) => {
+          console.log(`🗺️ SimpleMap: Processing monster ${index + 1}:`, {
+            name: monster.monster,
+            level: monster.level,
+            x: monster.x,
+            y: monster.y,
+            hasValidCoords: !isNaN(monster.x) && !isNaN(monster.y)
+          });
+          
           const color = getMonsterColor(monster.monster);
           const size = Math.max(20, Math.min(40, monster.level * 4));
+          
+          // Convert Evony coordinates (x,y) to map coordinates
+          // In Evony: (0,0) is bottom-left, (1000,1000) is top-right
+          // In Leaflet: we need to flip Y coordinate
+          const mapY = 1000 - monster.y; // Flip Y axis for proper display
+          const mapX = monster.x;
+          
+          console.log(`🗺️ SimpleMap: Converted coordinates for ${monster.monster}: (${mapX}, ${mapY})`);
           
           const icon = leaflet.divIcon({
             html: `
@@ -153,7 +202,8 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
             iconAnchor: [size / 2, size / 2],
           });
 
-          const marker = leaflet.marker([monster.y, monster.x], { icon }).addTo(map);
+          const marker = leaflet.marker([mapY, mapX], { icon }).addTo(map);
+          console.log(`🗺️ SimpleMap: Added marker for ${monster.monster} at [${mapY}, ${mapX}]`);
           
           marker.bindPopup(`
             <div style="
@@ -182,8 +232,10 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
           `);
         });
 
+        console.log(`🗺️ SimpleMap: Successfully processed ${monsters.length} monsters and added markers to map`);
+
       } catch (err) {
-        console.error('Failed to update markers:', err);
+        console.error('❌ SimpleMap: Failed to update markers:', err);
       }
     };
 
