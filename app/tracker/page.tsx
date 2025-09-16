@@ -485,30 +485,33 @@ export default function TrackerPage() {
           </div>
 
           {/* Holographic Map Container */}
-          <div className="absolute inset-8 top-32 rounded-3xl overflow-hidden shadow-2xl border border-purple-500/40 bg-black/30 backdrop-blur-sm relative z-10">
-            {/* Map Scanning Lines Effect */}
-            <div className="absolute inset-0 pointer-events-none z-20">
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent animate-pulse"></div>
-              <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-purple-400 to-transparent animate-pulse delay-1000"></div>
-              <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-transparent via-cyan-400 to-transparent animate-pulse delay-500"></div>
-              <div className="absolute top-0 right-0 w-1 h-full bg-gradient-to-b from-transparent via-purple-400 to-transparent animate-pulse delay-1500"></div>
-            </div>
-            
-            {/* Corner Decorations */}
-            <div className="absolute top-4 left-4 w-8 h-8 border-l-2 border-t-2 border-cyan-400 rounded-tl-lg z-20"></div>
-            <div className="absolute top-4 right-4 w-8 h-8 border-r-2 border-t-2 border-cyan-400 rounded-tr-lg z-20"></div>
-            <div className="absolute bottom-4 left-4 w-8 h-8 border-l-2 border-b-2 border-purple-400 rounded-bl-lg z-20"></div>
-            <div className="absolute bottom-4 right-4 w-8 h-8 border-r-2 border-b-2 border-purple-400 rounded-br-lg z-20"></div>
-            
+          <div className="absolute inset-8 top-32 rounded-3xl overflow-hidden shadow-2xl border border-purple-500/40 bg-black/30 backdrop-blur-sm relative z-10">            
             {/* Map Component - Ensured Visibility */}
-            <div className="absolute inset-0 z-10">
+            <div className="w-full h-full relative">
               {/* Debug overlay for monster data */}
               {monsters.length > 0 && (
-                <div className="absolute top-4 left-4 z-30 bg-black/80 text-white p-2 rounded text-xs max-w-xs">
-                  <div>Monsters: {monsters.length}</div>
-                  {monsters.slice(0, 3).map((m, i) => (
-                    <div key={i}>
+                <div className="absolute top-4 left-4 z-50 bg-red-900/90 text-white p-3 rounded text-sm max-w-xs border-2 border-red-500">
+                  <div className="font-bold text-red-200">🐛 DEBUG INFO</div>
+                  <div>Total Monsters: {monsters.length}</div>
+                  <div>Connection: {connectionStatus}</div>
+                  <div>Map Mode: {useSimpleMap ? 'Simple' : 'Advanced'}</div>
+                  {monsters.slice(0, 2).map((m, i) => (
+                    <div key={i} className="text-xs mt-1">
                       {m.monster} L{m.level} ({m.x?.toFixed(1)}, {m.y?.toFixed(1)})
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {/* Temporary Monster List for Testing */}
+              {monsters.length > 0 && (
+                <div className="absolute top-20 left-4 z-50 bg-blue-900/90 text-white p-3 rounded text-sm max-w-sm border-2 border-blue-500 max-h-64 overflow-y-auto">
+                  <div className="font-bold text-blue-200 mb-2">🗺️ MONSTER LOCATIONS</div>
+                  {monsters.slice(0, 10).map((monster, i) => (
+                    <div key={i} className="text-xs mt-1 border-b border-blue-700 pb-1">
+                      <div className="font-semibold">{monster.monster} Level {monster.level}</div>
+                      <div>📍 Coordinates: ({monster.x}, {monster.y})</div>
+                      <div className="text-blue-300">Server: {monster.server || 'Unknown'}</div>
                     </div>
                   ))}
                 </div>
@@ -528,6 +531,20 @@ export default function TrackerPage() {
                 />
               )}
             </div>
+            
+            {/* Map Effects - Moved after map for proper layering */}
+            <div className="absolute inset-0 pointer-events-none z-20">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent animate-pulse"></div>
+              <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-purple-400 to-transparent animate-pulse delay-1000"></div>
+              <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-transparent via-cyan-400 to-transparent animate-pulse delay-500"></div>
+              <div className="absolute top-0 right-0 w-1 h-full bg-gradient-to-b from-transparent via-purple-400 to-transparent animate-pulse delay-1500"></div>
+            </div>
+            
+            {/* Corner Decorations */}
+            <div className="absolute top-4 left-4 w-8 h-8 border-l-2 border-t-2 border-cyan-400 rounded-tl-lg z-20"></div>
+            <div className="absolute top-4 right-4 w-8 h-8 border-r-2 border-t-2 border-cyan-400 rounded-tr-lg z-20"></div>
+            <div className="absolute bottom-4 left-4 w-8 h-8 border-l-2 border-b-2 border-purple-400 rounded-bl-lg z-20"></div>
+            <div className="absolute bottom-4 right-4 w-8 h-8 border-r-2 border-b-2 border-purple-400 rounded-br-lg z-20"></div>
           </div>
           
           {/* Advanced Intelligence Panel */}

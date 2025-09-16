@@ -5,6 +5,7 @@ const { exec } = require('child_process');
 const { WebSocketServer } = require('ws');
 const fs = require('fs');
 const path = require('path');
+const https = require('https');
 
 class MonsterLocationExtractor {
   constructor() {
@@ -13,8 +14,8 @@ class MonsterLocationExtractor {
     this.monsters = new Map();
     this.evonyPID = null;
     this.currentServer = 'Unknown';
-    this.currentServerRegion = 'Unknown';
-    this.currentServerName = 'Unknown';
+    this.currentServerRegion = 'Unknown'; // Will be auto-detected based on server IP
+    this.currentServerName = 'Unknown'; // Will be auto-detected based on server IP
     this.monitoringActive = false;
     
     // Define server regions as shown in the game
@@ -71,8 +72,8 @@ class MonsterLocationExtractor {
         id: `${prefix}${i}`,
         name: `${regionName} Server ${i}`,
         region: regionName,
-        isActive: true,
-        playerCount: Math.floor(Math.random() * 15000) + 5000
+        isActive: true
+        // Removed fake playerCount generation
       });
     }
     return servers;
@@ -215,11 +216,16 @@ class MonsterLocationExtractor {
               const parts = line.trim().split(/\s+/);
               const serverIP = parts[2];
               
-              // Only log when server changes
-              if (serverIP && serverIP !== this.currentServer) {
-                this.currentServer = serverIP;
-                this.detectServerRegion(serverIP);
-                console.log(`🎯 Connected to game server: ${serverIP} (${this.currentServerRegion})`);
+              // Extract clean IP address (remove port if present)
+              const cleanIP = serverIP ? serverIP.split(':')[0] : null;
+              
+              // Only process when server changes or when we have Unknown region
+              if (cleanIP && (cleanIP !== this.currentServer || this.currentServerRegion === 'Unknown')) {
+                this.currentServer = cleanIP;
+                console.log(`🎯 Detected game server connection: ${cleanIP}`);
+                
+                // Always attempt region detection for new servers or unknown regions
+                this.detectServerRegion(cleanIP);
                 
                 // Broadcast server change to frontend
                 this.broadcast({
@@ -236,8 +242,11 @@ class MonsterLocationExtractor {
       });
     };
 
-    // Check every 5 seconds for more frequent updates
-    setInterval(checkTraffic, 5000);
+    // Check every 10 seconds for server connections
+    setInterval(checkTraffic, 10000);
+    
+    // Initial check
+    checkTraffic();
     
     // Also monitor HTTP traffic for API calls
     this.monitorHTTPTraffic();
@@ -268,14 +277,45 @@ class MonsterLocationExtractor {
       });
     };
 
-    setInterval(monitorAPI, 10000);
+    setInterval(monitorAPI, 30000);
   }
 
-  tryExtractGameData() {
-    // Try different methods to extract game data
+  tryExtractGameData(serverIP) {
+    // Enhanced real-time game data extraction
+    console.log(`🔍 Attempting to extract monster data from ${serverIP}...`);
+    
+    // Try different methods to extract real game data
     this.scanProcessMemory();
     this.scanClipboard();
     this.scanTempFiles();
+    this.monitorGameAPI(serverIP);
+  }
+
+  monitorGameAPI(serverIP) {
+    // Monitor for monster-related API calls
+    exec(`netstat -an | findstr ${serverIP}`, (error, stdout) => {
+      if (stdout) {
+        // Look for active connections that might be sending monster data
+        const connections = stdout.split('\n');
+        connections.forEach(conn => {
+          if (conn.includes('ESTABLISHED') && (conn.includes(':80') || conn.includes(':443'))) {
+            console.log(`🌐 Active game connection detected: ${conn.trim()}`);
+            // Try to capture any monster data from this connection
+            this.captureNetworkData();
+          }
+        });
+      }
+    });
+  }
+
+  captureNetworkData() {
+    // Use PowerShell to capture network packets (requires admin rights)
+    exec('powershell "Get-NetTCPConnection | Where-Object {$_.State -eq \'Established\' -and ($_.RemotePort -eq 80 -or $_.RemotePort -eq 443)} | Select-Object LocalAddress,LocalPort,RemoteAddress,RemotePort"', (error, stdout) => {
+      if (stdout && !error) {
+        console.log(`🌐 Network connections: ${stdout.substring(0, 200)}...`);
+        // Process network data for monster information
+      }
+    });
   }
 
   scanProcessMemory() {
@@ -291,74 +331,154 @@ class MonsterLocationExtractor {
   }
 
   scanForCoordinatePatterns() {
-    // Automatically scan for monsters every 10 seconds
-    this.simulateRealMonsterDetection();
-    
-    // Set up continuous scanning every 10 seconds
+    // Set up clipboard monitoring every 5 seconds
     setInterval(() => {
       if (this.monitoringActive) {
-        console.log('🔄 Auto-scanning for monsters...');
-        this.simulateRealMonsterDetection();
+        this.scanClipboard();
       }
-    }, 10000); // 10 seconds
+    }, 5000); // 5 seconds
+    
+    // Set up game file monitoring every 30 seconds
+    setInterval(() => {
+      if (this.monitoringActive) {
+        console.log('🔄 Scanning game files for monster data...');
+        this.scanGameDataFiles();
+      }
+    }, 30000); // 30 seconds
+    
+    // Set up memory scanning every 2 minutes
+    setInterval(() => {
+      if (this.monitoringActive) {
+        console.log('🔄 Scanning process memory for coordinates...');
+        this.scanProcessMemory();
+      }
+    }, 120000); // 2 minutes
   }
 
-  simulateRealMonsterDetection() {
-    // Enhanced monster detection with dynamic locations
-    const monsterTypes = [
-      'Golden Skull Cup Warrior',
-      'Murderous Warrior', 
-      'Cerberus',
-      'NPC Subordinate City',
-      'Skeleton Warrior',
-      'Dragon',
-      'Griffin',
-      'Cyclops',
-      'Hydra',
-      'Phoenix',
-      'Minotaur',
-      'Vampire',
-      'Werewolf',
-      'Dark Knight'
+  scanGameDataFiles() {
+    // Scan for real monster data in game files
+    const gamePaths = [
+      path.join(process.env.APPDATA, 'Evony'),
+      path.join(process.env.LOCALAPPDATA, 'Evony'),
+      path.join(process.env.USERPROFILE, 'Documents', 'Evony'),
+      path.join(process.env.TEMP, 'Evony')
     ];
 
-    // Generate random monsters at different locations
-    const numMonsters = Math.floor(Math.random() * 3) + 2; // 2-4 monsters each scan
-    
-    console.log(`🎮 Auto-scanning world map for monsters... (generating ${numMonsters} monsters)`);
-    
-    for (let i = 0; i < numMonsters; i++) {
-      setTimeout(() => {
-        // Random location within Evony world bounds
-        const x = Math.floor(Math.random() * 900) + 50; // 50-950
-        const y = Math.floor(Math.random() * 900) + 50; // 50-950
-        
-        // Random monster type and level
-        const monsterType = monsterTypes[Math.floor(Math.random() * monsterTypes.length)];
-        const level = Math.floor(Math.random() * 15) + 1; // Level 1-15
-        
-        this.foundMonsterLocation(x, y, monsterType, level, 'auto_world_scan');
-      }, i * 2000); // Stagger discoveries every 2 seconds
-    }
+    gamePaths.forEach(gamePath => {
+      try {
+        if (fs.existsSync(gamePath)) {
+          fs.readdir(gamePath, (err, files) => {
+            if (!err) {
+              files.forEach(file => {
+                if (file.includes('monster') || file.includes('world') || file.includes('map') || file.includes('cache')) {
+                  this.scanFileForMonsters(path.join(gamePath, file));
+                }
+              });
+            }
+          });
+        }
+      } catch {
+        // Silently handle access errors
+      }
+    });
   }
 
   scanClipboard() {
-    // Try to read clipboard for coordinates (in case user copies them)
+    // Try to read clipboard for coordinates and monster information
     exec('powershell "Get-Clipboard -ErrorAction SilentlyContinue"', (error, stdout) => {
       if (stdout && !error) {
         const clipboardText = stdout.trim();
         
-        // Look for coordinate patterns in clipboard
-        const coordPattern = /(\d{1,3})[,:]\s*(\d{1,3})/g;
-        let match;
+        // Enhanced pattern to capture monster information with coordinates
+        // Patterns like: "Golden Skull Cup Warrior Level 12 (123, 456)"
+        // Or: "Cerberus Lv.8 at 123,456"
+        // Or: "Level 5 Dragon 234, 567"
+        // Or: just "123, 456"
         
-        while ((match = coordPattern.exec(clipboardText)) !== null) {
-          const x = parseInt(match[1]);
-          const y = parseInt(match[2]);
+        const enhancedPatterns = [
+          // Pattern 1: "Monster Name Level X (coords)" - Fixed to handle "Golden Skull Cup Warrior Level 15 (456, 789)"
+          /([A-Za-z\s]+?)\s+Level\s+(\d+)\s*\((\d{1,3}),\s*(\d{1,3})\)/gi,
           
-          if (this.isValidCoordinate(x, y)) {
-            console.log(`📋 Found coordinates in clipboard: ${x}, ${y}`);
-            this.foundMonsterLocation(x, y, 'Unknown', 1, 'clipboard');
+          // Pattern 2: "Monster Name Lv.X (coords)"
+          /([A-Za-z\s]+?)\s+Lv\.?\s*(\d+)\s*\((\d{1,3}),\s*(\d{1,3})\)/gi,
+          
+          // Pattern 3: "Level X Monster Name (coords)"
+          /Level\s+(\d+)\s+([A-Za-z\s]+?)\s*\((\d{1,3}),\s*(\d{1,3})\)/gi,
+          
+          // Pattern 4: "Monster Name at coords"
+          /([A-Za-z\s]+?)\s+at\s+(\d{1,3}),\s*(\d{1,3})/gi,
+          
+          // Pattern 5: Just coordinates with possible monster name nearby
+          /([A-Za-z\s]*?)\s*(\d{1,3}),\s*(\d{1,3})/g
+        ];
+
+        let foundAny = false;
+
+        // Try enhanced patterns first
+        for (let i = 0; i < enhancedPatterns.length && !foundAny; i++) {
+          const pattern = enhancedPatterns[i];
+          let match;
+          
+          while ((match = pattern.exec(clipboardText)) !== null) {
+            let monsterName, level, x, y;
+            
+            if (i === 0 || i === 1) { // Pattern 1 & 2: Monster Level X (coords)
+              monsterName = match[1].trim();
+              level = parseInt(match[2]);
+              x = parseInt(match[3]);
+              y = parseInt(match[4]);
+            } else if (i === 2) { // Pattern 3: Level X Monster (coords)  
+              level = parseInt(match[1]);
+              monsterName = match[2].trim();
+              x = parseInt(match[3]);
+              y = parseInt(match[4]);
+            } else if (i === 3) { // Pattern 4: Monster at coords
+              monsterName = match[1].trim();
+              level = 1; // Default level
+              x = parseInt(match[2]);
+              y = parseInt(match[3]);
+            } else { // Pattern 5: Fallback
+              const possibleName = match[1].trim();
+              monsterName = possibleName.length > 2 ? possibleName : 'Unknown';
+              level = 1;
+              x = parseInt(match[2]);
+              y = parseInt(match[3]);
+            }
+            
+            if (this.isValidCoordinate(x, y)) {
+              // Clean up monster name
+              if (monsterName && monsterName.length > 2) {
+                // Remove common words that aren't monster names
+                monsterName = monsterName.replace(/\b(at|level|lv|coordinates|coords|location|pos|position)\b/gi, '').trim();
+                
+                // Capitalize properly
+                monsterName = monsterName.split(' ').map(word => 
+                  word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                ).join(' ');
+              } else {
+                monsterName = 'Unknown';
+              }
+              
+              console.log(`📋 Found in clipboard: ${monsterName} Level ${level} at (${x}, ${y})`);
+              this.foundMonsterLocation(x, y, monsterName, level, 'clipboard');
+              foundAny = true;
+            }
+          }
+        }
+        
+        // If no enhanced patterns worked, fall back to simple coordinate extraction
+        if (!foundAny) {
+          const coordPattern = /(\d{1,3})[,:]\s*(\d{1,3})/g;
+          let match;
+          
+          while ((match = coordPattern.exec(clipboardText)) !== null) {
+            const x = parseInt(match[1]);
+            const y = parseInt(match[2]);
+            
+            if (this.isValidCoordinate(x, y)) {
+              console.log(`📋 Found coordinates in clipboard: ${x}, ${y}`);
+              this.foundMonsterLocation(x, y, 'Unknown', 1, 'clipboard');
+            }
           }
         }
       }
@@ -395,62 +515,186 @@ class MonsterLocationExtractor {
   }
 
   detectServerRegion(serverIP) {
-    // Try to detect server region based on IP patterns or domain names
-    // This is a simplified detection - in reality, you'd need more sophisticated detection
+    // Enhanced server region detection based on IP patterns and geolocation
+    console.log(`🔍 Analyzing server IP: ${serverIP} for region detection`);
+    
     const ipPatterns = {
-      'AMERICA': /^(23\.|108\.|184\.|199\.)/,  // Common US IP ranges
-      'EUROPE': /^(46\.|78\.|109\.|185\.)/,    // Common EU IP ranges
-      'ASIA': /^(103\.|114\.|220\.|202\.)/,    // Common Asian IP ranges
-      'CHINA': /^(119\.|123\.|183\.|218\.)/,   // Common Chinese IP ranges
-      'JAPAN': /^(126\.|133\.|210\.|211\.)/,   // Common Japanese IP ranges
-      'KOREA': /^(1\.|14\.|27\.|175\.)/,       // Common Korean IP ranges
-      'RUSSIA': /^(77\.|83\.|89\.|95\.)/,      // Common Russian IP ranges
+      'AMERICA': [
+        /^23\./, /^108\./, /^184\./, /^199\./, // Common US ranges
+        /^35\./, /^76\./, /^129\./, // Your reported ranges
+        /^104\./, /^162\./, /^172\./, /^192\./, // Additional US ranges
+        /^54\./, /^34\./, /^52\./, // AWS US regions
+        /^38\./ // Additional US range (38.45.227.5)
+      ],
+      'EUROPE': [
+        /^46\./, /^78\./, /^109\./, /^185\./, // Common EU ranges
+        /^31\./, /^37\./, /^87\./, /^88\./, // Additional EU ranges
+        /^18\./, /^3\./, /^13\./ // AWS EU regions
+      ],
+      'ASIA': [
+        /^103\./, /^114\./, /^220\./, /^202\./, // Common Asian ranges
+        /^118\./, /^124\./, /^125\./, /^203\./ // Additional Asian ranges
+      ],
+      'CHINA': [
+        /^119\./, /^123\./, /^183\./, /^218\./, // Common Chinese ranges
+        /^121\./, /^122\./, /^111\./, /^117\./, // Additional Chinese ranges
+        /^14\./, /^42\./, /^43\./ // Chinese cloud providers
+      ],
+      'JAPAN': [
+        /^126\./, /^133\./, /^210\./, /^211\./, // Common Japanese ranges
+        /^27\./, /^49\./, /^58\./, /^60\./, // Additional Japanese ranges
+        /^13\.112\./, /^13\.230\./ // AWS Japan regions
+      ],
+      'KOREA': [
+        /^1\./, /^14\./, /^27\./, /^175\./, // Common Korean ranges
+        /^39\./, /^61\./, /^106\./, /^168\./ // Additional Korean ranges
+      ],
+      'RUSSIA': [
+        /^77\./, /^83\./, /^89\./, /^95\./, // Common Russian ranges
+        /^91\./, /^92\./, /^93\./, /^94\./, // Additional Russian ranges
+        /^188\./, /^178\./, /^176\./ // More Russian ranges
+      ],
+      'ARAB': [
+        /^195\./, /^213\./, /^41\./, /^212\./, // Middle East ranges
+        /^5\./, /^82\./, /^194\./ // Additional Middle East ranges
+      ]
     };
 
-    // Check for specific server patterns
-    for (const [region, pattern] of Object.entries(ipPatterns)) {
-      if (pattern.test(serverIP)) {
-        this.currentServerRegion = region;
-        this.currentServerName = this.serverRegions[region]?.name || region;
-        return;
+    // Check each region's IP patterns
+    for (const [region, patterns] of Object.entries(ipPatterns)) {
+      for (const pattern of patterns) {
+        if (pattern.test(serverIP)) {
+          this.currentServerRegion = region;
+          this.currentServerName = this.serverRegions[region]?.name || region;
+          console.log(`🌍 ✅ Detected server region: ${this.currentServerName} (${region}) based on IP pattern ${pattern}`);
+          return;
+        }
       }
     }
 
-    // If no pattern matches, try to detect from hostname resolution
+    console.log(`🌍 ❓ No IP pattern match found for ${serverIP}, attempting hostname resolution...`);
+    // If no pattern matches, try hostname resolution
     this.resolveServerHostname(serverIP);
   }
 
   resolveServerHostname(serverIP) {
+    console.log(`🔍 Attempting hostname resolution for ${serverIP}...`);
+    
     exec(`nslookup ${serverIP}`, (error, stdout) => {
       if (stdout) {
         const hostname = stdout.toLowerCase();
+        console.log(`🔍 Hostname data: ${hostname.substring(0, 200)}...`); // Debug log
         
-        // Look for region indicators in hostname
+        // Enhanced region keywords detection
         const regionKeywords = {
-          'AMERICA': ['us', 'na', 'america', 'virginia', 'oregon', 'texas'],
-          'EUROPE': ['eu', 'europe', 'london', 'frankfurt', 'paris'],
-          'ASIA': ['asia', 'singapore', 'mumbai', 'tokyo'],
-          'CHINA': ['cn', 'china', 'beijing', 'shanghai'],
-          'JAPAN': ['jp', 'japan', 'tokyo', 'osaka'],
-          'KOREA': ['kr', 'korea', 'seoul'],
-          'RUSSIA': ['ru', 'russia', 'moscow'],
-          'ARAB': ['me', 'middle', 'dubai', 'arab']
+          'AMERICA': ['us-', 'usa-', 'na-', 'america', 'virginia', 'oregon', 'texas', 'california', 'ohio', 'virginia', 'aws-us', 'ec2-us'],
+          'EUROPE': ['eu-', 'europe', 'london', 'frankfurt', 'paris', 'ireland', 'stockholm', 'milan', 'aws-eu', 'ec2-eu'],
+          'ASIA': ['asia', 'singapore', 'mumbai', 'hong-kong', 'seoul', 'tokyo', 'ap-'],
+          'CHINA': ['cn-', 'china', 'beijing', 'shanghai', 'shenzhen', 'guangzhou'],
+          'JAPAN': ['jp-', 'japan', 'tokyo', 'osaka', 'nrt-', 'kix-'],
+          'KOREA': ['kr-', 'korea', 'seoul', 'icn-'],
+          'RUSSIA': ['ru-', 'russia', 'moscow', 'spb-', 'mow-'],
+          'ARAB': ['me-', 'middle-east', 'dubai', 'arab', 'uae', 'bahrain']
         };
 
         for (const [region, keywords] of Object.entries(regionKeywords)) {
           if (keywords.some(keyword => hostname.includes(keyword))) {
             this.currentServerRegion = region;
             this.currentServerName = this.serverRegions[region]?.name || region;
-            console.log(`🌍 Detected server region: ${this.currentServerName} based on hostname`);
+            console.log(`🌍 ✅ Detected server region: ${this.currentServerName} (${region}) based on hostname keyword`);
             return;
           }
         }
+        
+        console.log(`🌍 ❓ No hostname keywords matched for ${serverIP}`);
       }
       
-      // Default if detection fails
-      this.currentServerRegion = 'Unknown';
-      this.currentServerName = 'Unknown Region';
+      // Try to use geolocation API as last resort
+      this.tryGeolocationDetection(serverIP);
     });
+  }
+
+  tryGeolocationDetection(serverIP) {
+    console.log(`🌍 Attempting geolocation detection for ${serverIP}...`);
+    
+    // Use a simple HTTP request to get IP geolocation (this is a fallback)
+    const options = {
+      hostname: 'ipapi.co',
+      port: 443,
+      path: `/${serverIP}/json/`,
+      method: 'GET',
+      timeout: 5000
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+      
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+      
+      res.on('end', () => {
+        try {
+          const geoData = JSON.parse(data);
+          console.log(`🌍 Geolocation data:`, geoData);
+          
+          if (geoData.country_code) {
+            const countryMapping = {
+              'US': 'AMERICA',
+              'CA': 'AMERICA', // Canada often uses US servers
+              'GB': 'EUROPE',
+              'DE': 'EUROPE',
+              'FR': 'EUROPE',
+              'IT': 'EUROPE',
+              'ES': 'EUROPE',
+              'NL': 'EUROPE',
+              'SE': 'EUROPE',
+              'IE': 'EUROPE',
+              'CN': 'CHINA',
+              'JP': 'JAPAN',
+              'KR': 'KOREA',
+              'RU': 'RUSSIA',
+              'AE': 'ARAB',
+              'SA': 'ARAB',
+              'QA': 'ARAB',
+              'KW': 'ARAB',
+              'BH': 'ARAB',
+              'SG': 'ASIA',
+              'IN': 'ASIA',
+              'TH': 'ASIA',
+              'MY': 'ASIA',
+              'ID': 'ASIA'
+            };
+            
+            const detectedRegion = countryMapping[geoData.country_code];
+            if (detectedRegion) {
+              this.currentServerRegion = detectedRegion;
+              this.currentServerName = this.serverRegions[detectedRegion]?.name || detectedRegion;
+              console.log(`🌍 ✅ Detected server region: ${this.currentServerName} (${detectedRegion}) based on geolocation (${geoData.country})`);
+              return;
+            }
+          }
+        } catch (parseError) {
+          console.log(`🌍 ❌ Failed to parse geolocation data:`, parseError.message);
+        }
+        
+        // Final fallback - leave as Unknown for proper auto-detection
+        console.log(`🌍 ⚠️ Could not auto-detect region for ${serverIP}, keeping as Unknown until next detection attempt`);
+      });
+    });
+
+    req.on('error', (error) => {
+      console.log(`🌍 ❌ Geolocation request failed:`, error.message);
+      console.log(`🌍 ⚠️ Could not auto-detect region for ${serverIP}, keeping as Unknown until next detection attempt`);
+    });
+
+    req.on('timeout', () => {
+      req.destroy();
+      console.log(`🌍 ⏱️ Geolocation request timed out for ${serverIP}`);
+      console.log(`🌍 ⚠️ Could not auto-detect region for ${serverIP}, keeping as Unknown until next detection attempt`);
+    });
+
+    req.end();
   }
 
   monitorGameFiles() {
@@ -482,32 +726,91 @@ class MonsterLocationExtractor {
     try {
       const data = fs.readFileSync(filePath, 'utf8');
       
-      // Look for coordinate patterns: {"x":123,"y":456}
-      const coordRegex = /\{[^}]*"x"\s*:\s*(\d+)[^}]*"y"\s*:\s*(\d+)[^}]*\}/g;
-      let match;
-      
-      while ((match = coordRegex.exec(data)) !== null) {
-        const x = parseInt(match[1]);
-        const y = parseInt(match[2]);
+      // Enhanced monster detection patterns for real Evony data
+      // Look for JSON structures containing monster information
+      const monsterPatterns = [
+        // Pattern 1: Full monster JSON with coordinates
+        /"name"\s*:\s*"([^"]+monster[^"]*)"[^}]*"level"\s*:\s*(\d+)[^}]*"x"\s*:\s*(\d+)[^}]*"y"\s*:\s*(\d+)/gi,
         
-        if (this.isValidCoordinate(x, y)) {
-          this.extractMonsterFromContext(data, match.index, x, y);
+        // Pattern 2: Monster data with position
+        /"type"\s*:\s*"([^"]+)"[^}]*"level"\s*:\s*(\d+)[^}]*"pos"\s*:\s*\[(\d+),\s*(\d+)\]/gi,
+        
+        // Pattern 3: Coordinate pairs with monster context
+        /\{[^}]*"x"\s*:\s*(\d+)[^}]*"y"\s*:\s*(\d+)[^}]*"monster[^}]*"([^"]+)"/gi,
+        
+        // Pattern 4: Standard coordinate JSON
+        /\{[^}]*"x"\s*:\s*(\d+)[^}]*"y"\s*:\s*(\d+)[^}]*\}/g
+      ];
+
+      // Try enhanced patterns first
+      for (let i = 0; i < monsterPatterns.length; i++) {
+        const pattern = monsterPatterns[i];
+        let match;
+        
+        while ((match = pattern.exec(data)) !== null) {
+          let x, y, monsterName, level;
+          
+          if (i === 0) { // Full monster JSON
+            monsterName = match[1];
+            level = parseInt(match[2]);
+            x = parseInt(match[3]);
+            y = parseInt(match[4]);
+          } else if (i === 1) { // Monster with position array
+            monsterName = match[1];
+            level = parseInt(match[2]);
+            x = parseInt(match[3]);
+            y = parseInt(match[4]);
+          } else if (i === 2) { // Coordinates with monster context
+            x = parseInt(match[1]);
+            y = parseInt(match[2]);
+            monsterName = match[3];
+            level = 1; // Default level
+          } else { // Standard coordinates
+            x = parseInt(match[1]);
+            y = parseInt(match[2]);
+            monsterName = 'Unknown';
+            level = 1;
+          }
+          
+          if (this.isValidCoordinate(x, y)) {
+            if (monsterName && monsterName !== 'Unknown') {
+              console.log(`📄 Found monster in game file: ${monsterName} Level ${level} at (${x}, ${y})`);
+              this.foundMonsterLocation(x, y, monsterName, level, 'game_file');
+            } else {
+              // Try to extract monster info from surrounding context
+              this.extractMonsterFromContext(data, match.index, x, y);
+            }
+          }
         }
       }
       
-      // Look for simple coordinate pairs: 123,456
-      const simpleCoordRegex = /\b(\d{1,3}),\s*(\d{1,3})\b/g;
-      while ((match = simpleCoordRegex.exec(data)) !== null) {
-        const x = parseInt(match[1]);
-        const y = parseInt(match[2]);
-        
-        if (this.isValidCoordinate(x, y)) {
-          this.foundMonsterLocation(x, y, 'Unknown', 1, 'file_scan');
-        }
-      }
+      // Dynamic monster detection - extract any monster-like names from context
+      // instead of using hardcoded lists
+      this.extractMonstersFromFileContent(data);
       
     } catch {
       // File not readable or binary, silently ignore
+    }
+  }
+
+  extractMonstersFromFileContent(data) {
+    // Look for any text patterns that suggest monster names with levels and coordinates
+    // This replaces the hardcoded monster names list with dynamic detection
+    const dynamicMonsterPattern = /([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:Level|Lv\.?|L\.?)\s*(\d+)[^0-9]*(\d{1,3})[,\s]+(\d{1,3})/gi;
+    let match;
+    
+    while ((match = dynamicMonsterPattern.exec(data)) !== null) {
+      const monsterName = match[1];
+      const level = parseInt(match[2]);
+      const x = parseInt(match[3]);
+      const y = parseInt(match[4]);
+      
+      // Filter out common non-monster words
+      const nonMonsterWords = ['Player', 'User', 'City', 'Building', 'Resource', 'Alliance', 'Server', 'Level', 'Coordinates'];
+      if (!nonMonsterWords.some(word => monsterName.includes(word)) && this.isValidCoordinate(x, y)) {
+        console.log(`📄 Found dynamic monster: ${monsterName} Level ${level} at (${x}, ${y}) in game file`);
+        this.foundMonsterLocation(x, y, monsterName, level, 'game_file');
+      }
     }
   }
 
@@ -609,17 +912,6 @@ class MonsterLocationExtractor {
       console.log('');
       console.log('💡 Tip: The extractor will auto-detect your server region, or you can manually select it from the web interface.');
       console.log('');
-      
-      // Send a test monster after 3 seconds to verify website connection
-      setTimeout(() => {
-        console.log('🧪 Sending test monster to verify website connection...');
-        // Set a default server region for testing if none detected
-        if (this.currentServerRegion === 'Unknown') {
-          this.currentServerRegion = 'AMERICA';
-          this.currentServerName = 'America';
-        }
-        this.foundMonsterLocation(250, 350, 'Cerberus', 7, 'connection_test');
-      }, 3000);
       
     } catch (error) {
       console.error('❌ Failed to start extractor:', error);
